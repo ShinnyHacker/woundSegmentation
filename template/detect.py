@@ -31,9 +31,11 @@ def load_yolo_mask(image_path, label_path):
                 cv2.fillPoly(mask, [points], 255)
     return img, mask
 
-def save_side_by_side(img, mask, output_path):
-    mask3 = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
-    combined = np.hstack((img, mask3))
+def save_side_by_side(original_path, gt_overlay_path , pred_overlay_path , output_path):
+    original = cv2.imread(original_path)
+    gt_overlay = cv2.imread(gt_overlay_path)
+    pred_overlay = cv2.imread(pred_overlay_path)
+    combined = np.hstack((original, gt_overlay, pred_overlay))
     cv2.imwrite(output_path, combined)
 
 def save_overlay(img, mask, output_path, alpha=0.5):
@@ -88,13 +90,14 @@ for file_name in os.listdir(images_dir):
 
     img, gt_mask = load_yolo_mask(image_path, label_path)
 
-    # Save original + GT mask side by side
-    # save_side_by_side(img, gt_mask, os.path.join(output_dir, f"{os.path.splitext(file_name)[0]}_gt_side.png"))
-
     # Save GT mask overlay
     save_overlay(img, gt_mask, os.path.join(output_dir, f"{os.path.splitext(file_name)[0]}_gt_overlay.png"))
 
     # Save predicted mask (optional)
     save_prediction_with_score_above_mask(image_path, os.path.join(output_dir, f"{os.path.splitext(file_name)[0]}_pred_mask.png"))
+
+    # Save original + GT mask side by side
+    print(image_path)
+    save_side_by_side(image_path, os.path.join(output_dir, f"{os.path.splitext(file_name)[0]}_gt_overlay.png"), os.path.join(output_dir, f"{os.path.splitext(file_name)[0]}_pred_mask.png"), os.path.join(output_dir, f"{os.path.splitext(file_name)[0]}_gt_side.png"))
 
 print("All images processed and saved in:", output_dir)
