@@ -1,4 +1,5 @@
 import os
+
 import cv2
 import numpy as np
 from ultralytics import YOLO
@@ -14,13 +15,14 @@ os.makedirs(output_dir, exist_ok=True)
 # Load YOLOv11 model
 model = YOLO(model_path)
 
+
 def load_yolo_mask(image_path, label_path):
     img = cv2.imread(image_path)
     H, W = img.shape[:2]
     mask = np.zeros((H, W), dtype=np.uint8)
 
     if os.path.exists(label_path):
-        with open(label_path, "r") as f:
+        with open(label_path) as f:
             for line in f.readlines():
                 parts = list(map(float, line.split()))
                 xy = parts[1:]
@@ -31,24 +33,27 @@ def load_yolo_mask(image_path, label_path):
                 cv2.fillPoly(mask, [points], 255)
     return img, mask
 
-def save_side_by_side(original_path, gt_overlay_path , pred_overlay_path , output_path):
+
+def save_side_by_side(original_path, gt_overlay_path, pred_overlay_path, output_path):
     original = cv2.imread(original_path)
     gt_overlay = cv2.imread(gt_overlay_path)
     pred_overlay = cv2.imread(pred_overlay_path)
     combined = np.hstack((original, gt_overlay, pred_overlay))
     cv2.imwrite(output_path, combined)
 
+
 def save_overlay(img, mask, output_path, alpha=0.7):
     color_mask = cv2.applyColorMap(mask, cv2.COLORMAP_JET)
     blended = cv2.addWeighted(img, 1.0, color_mask, alpha, 0)
     cv2.imwrite(output_path, blended)
+
 
 def save_prediction_with_score_above_mask(img_path, output_path):
     results = model(img_path)
     img = cv2.imread(img_path)
 
     for r in results:
-    # Check if masks exist
+        # Check if masks exist
         if r.masks is not None:
             masks = r.masks.data.cpu().numpy()
             # Continue saving mask...
@@ -67,7 +72,7 @@ def save_prediction_with_score_above_mask(img_path, output_path):
             # Find bounding box of mask
             coords = cv2.findNonZero(final_mask)
             if coords is not None:
-                x, y, w, h = cv2.boundingRect(coords)
+                x, y, _w, _h = cv2.boundingRect(coords)
                 text_x = x
                 text_y = max(y - 10, 0)  # 10 pixels above the top
             else:
@@ -75,9 +80,9 @@ def save_prediction_with_score_above_mask(img_path, output_path):
                 text_x, text_y = 10, 30
 
             # Put text above the segmented area
-            cv2.putText(blended, f"wound: {mean_conf:.2f}",
-                        (text_x, text_y),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+            cv2.putText(
+                blended, f"wound: {mean_conf:.2f}", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2
+            )
 
             # Save final image
             cv2.imwrite(output_path, blended)
@@ -85,11 +90,11 @@ def save_prediction_with_score_above_mask(img_path, output_path):
             print(f"No masks detected for {image_path}")
             # Optionally, save an empty mask
             from PIL import Image
+
             img = Image.open(image_path)
             empty_mask = np.zeros((img.height, img.width), dtype=np.uint8)
             empty_mask = Image.fromarray(empty_mask)
             empty_mask.save(output_path)
-        
 
 
 # ----- PROCESS ALL IMAGES -----
@@ -106,10 +111,17 @@ for file_name in os.listdir(images_dir):
     save_overlay(img, gt_mask, os.path.join(output_dir, f"{os.path.splitext(file_name)[0]}_gt_overlay.png"))
 
     # Save predicted mask (optional)
-    save_prediction_with_score_above_mask(image_path, os.path.join(output_dir, f"{os.path.splitext(file_name)[0]}_pred_mask.png"))
+    save_prediction_with_score_above_mask(
+        image_path, os.path.join(output_dir, f"{os.path.splitext(file_name)[0]}_pred_mask.png")
+    )
 
     # Save original + GT mask side by side
     print(image_path)
-    save_side_by_side(image_path, os.path.join(output_dir, f"{os.path.splitext(file_name)[0]}_gt_overlay.png"), os.path.join(output_dir, f"{os.path.splitext(file_name)[0]}_pred_mask.png"), os.path.join(output_dir, f"{os.path.splitext(file_name)[0]}_gt_side.png"))
+    save_side_by_side(
+        image_path,
+        os.path.join(output_dir, f"{os.path.splitext(file_name)[0]}_gt_overlay.png"),
+        os.path.join(output_dir, f"{os.path.splitext(file_name)[0]}_pred_mask.png"),
+        os.path.join(output_dir, f"{os.path.splitext(file_name)[0]}_gt_side.png"),
+    )
 
 print("All images processed and saved in:", output_dir)
